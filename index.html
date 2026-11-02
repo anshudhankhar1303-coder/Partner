@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saamne – chat with someone new</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1e1b3a;
+    --paper: #f2effa;
+    --card: #ffffff;
+    --marigold: #f2a900;
+    --teal: #0e7c7b;
+    --muted: #6b6788;
+    --line: #dcd7ee;
+    --danger: #b3261e;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Bricolage Grotesque', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    line-height: 1.45;
+  }
+  button { font: inherit; cursor: pointer; }
+  button:focus-visible, input:focus-visible, label:focus-within {
+    outline: 3px solid var(--teal);
+    outline-offset: 2px;
+  }
+  .screen { display: none; height: 100dvh; }
+  .screen.active { display: flex; }
+
+  /* ---------- Landing ---------- */
+  #landing { align-items: center; justify-content: center; padding: 24px; }
+  .panel { width: 100%; max-width: 440px; }
+  h1 { font-size: clamp(3rem, 14vw, 4.75rem); font-weight: 800; letter-spacing: -0.03em; line-height: 0.95; }
+  .tagline { margin-top: 12px; font-size: 1.1rem; color: var(--muted); max-width: 32ch; }
+  .picker { margin-top: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .picker input { position: absolute; opacity: 0; pointer-events: none; }
+  .choice {
+    display: block; padding: 20px 12px; text-align: center; font-weight: 600; font-size: 1.1rem;
+    background: var(--card); border: 2px solid var(--line); border-radius: var(--radius);
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .choice small { display: block; margin-top: 2px; font-weight: 400; color: var(--muted); font-size: .85rem; }
+  .picker input:checked + .choice { border-color: var(--ink); background: var(--marigold); }
+  .picker input:focus-visible + .choice { outline: 3px solid var(--teal); outline-offset: 2px; }
+  .age { margin-top: 18px; display: flex; gap: 10px; align-items: center; font-size: .95rem; }
+  .age input { width: 20px; height: 20px; accent-color: var(--ink); }
+  #startBtn {
+    margin-top: 20px; width: 100%; padding: 16px; border: 0; border-radius: var(--radius);
+    background: var(--ink); color: #fff; font-weight: 600; font-size: 1.05rem;
+  }
+  #startBtn:disabled { background: var(--line); color: var(--muted); cursor: not-allowed; }
+  .live { margin-top: 20px; color: var(--muted); font-size: .95rem; }
+  .live b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .fine { margin-top: 28px; font-size: .8rem; color: var(--muted); max-width: 48ch; }
+
+  /* ---------- Chat ---------- */
+  #chat { flex-direction: column; max-width: 720px; margin: 0 auto; background: var(--card); }
+  .bar {
+    padding: 14px 16px; padding-top: max(14px, env(safe-area-inset-top, 0px));
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--line);
+  }
+  .online-count { font-size: .9rem; color: var(--muted); }
+  .online-count b { display: block; font-size: 1.6rem; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
+  .status {
+    padding: 6px 12px; border-radius: 999px; font-size: .85rem; font-weight: 600;
+    background: var(--paper); color: var(--muted);
+  }
+  .status.live-on { background: var(--teal); color: #fff; }
+  .status.searching { background: var(--marigold); color: var(--ink); }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; word-wrap: break-word; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .msg.me { align-self: flex-end; background: var(--ink); color: #fff; border-bottom-right-radius: 4px; }
+  .msg.them { align-self: flex-start; background: var(--paper); border-bottom-left-radius: 4px; }
+  .msg.sys { align-self: center; max-width: 100%; background: none; color: var(--muted); font-size: .85rem; text-align: center; padding: 4px; }
+  #typing { min-height: 22px; padding: 0 18px; font-size: .8rem; color: var(--muted); }
+  .actions { display: flex; gap: 8px; padding: 8px 12px 0; }
+  .actions button { flex: 1; padding: 11px 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-weight: 600; }
+  #nextBtn { background: var(--marigold); border-color: var(--marigold); color: var(--ink); }
+  #reportBtn { color: var(--danger); }
+  .actions button:disabled { opacity: .45; cursor: not-allowed; }
+  #composer { display: flex; gap: 8px; padding: 12px; padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+  #input { flex: 1; padding: 13px 14px; border: 2px solid var(--line); border-radius: 12px; font: inherit; }
+  #input:disabled { background: var(--paper); }
+  #sendBtn { padding: 0 20px; border: 0; border-radius: 12px; background: var(--teal); color: #fff; font-weight: 600; }
+  #sendBtn:disabled { opacity: .45; cursor: not-allowed; }
+
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<!-- Screen 1: choose gender -->
+<main id="landing" class="screen active">
+  <div class="panel">
+    <h1>Saamne</h1>
+    <p class="tagline">Talk to someone new. No sign-up, no email, no phone number.</p>
+
+    <div class="picker" role="radiogroup" aria-label="Choose your gender">
+      <div>
+        <input type="radio" name="gender" id="g-male" value="male">
+        <label class="choice" for="g-male">I'm a boy<small>You'll meet girls</small></label>
+      </div>
+      <div>
+        <input type="radio" name="gender" id="g-female" value="female">
+        <label class="choice" for="g-female">I'm a girl<small>You'll meet boys</small></label>
+      </div>
+    </div>
+
+    <label class="age">
+      <input type="checkbox" id="adult">
+      <span>I am 18 or older</span>
+    </label>
+
+    <button id="startBtn" disabled>Start chatting</button>
+
+    <p class="live" id="landingCounts">Online now: <b id="lcMale">0</b> boys, <b id="lcFemale">0</b> girls</p>
+    <p class="fine">Your gender is not verified, so be careful what you share. Never give out personal details. Use Report if someone is rude or unsafe.</p>
+  </div>
+</main>
+
+<!-- Screen 2: chat -->
+<section id="chat" class="screen">
+  <div class="bar">
+    <div class="online-count"><span id="oppLabel">Girls online</span><b id="oppCount">0</b></div>
+    <div class="status" id="status">Connecting…</div>
+  </div>
+
+  <div id="messages" aria-live="polite"></div>
+  <div id="typing"></div>
+
+  <div class="actions">
+    <button id="nextBtn">Next</button>
+    <button id="stopBtn">Stop</button>
+    <button id="reportBtn" disabled>Report</button>
+  </div>
+
+  <form id="composer" autocomplete="off">
+    <input id="input" type="text" maxlength="500" placeholder="Type a message" aria-label="Message" disabled>
+    <button id="sendBtn" type="submit" disabled>Send</button>
+  </form>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function () {
+  const socket = io();
+  const $ = (id) => document.getElementById(id);
+
+  let myGender = null;
+  let joined = false;
+  let connected = false;     // matched with someone right now
+  let counts = { male: 0, female: 0 };
+  let typingTimer = null;
+
+  const oppWord = () => (myGender === 'male' ? 'girl' : 'boy');
+  const oppWordPlural = () => (myGender === 'male' ? 'Girls' : 'Boys');
+
+  /* ----- landing ----- */
+  const startBtn = $('startBtn');
+  function updateStartBtn() {
+    const g = document.querySelector('input[name="gender"]:checked');
+    startBtn.disabled = !(g && $('adult').checked);
+  }
+  document.querySelectorAll('input[name="gender"]').forEach((r) => r.addEventListener('change', updateStartBtn));
+  $('adult').addEventListener('change', updateStartBtn);
+
+  startBtn.addEventListener('click', () => {
+    const g = document.querySelector('input[name="gender"]:checked');
+    if (!g || !$('adult').checked) return;
+    myGender = g.value;
+    socket.emit('join', { gender: myGender, adult: true });
+  });
+
+  /* ----- helpers ----- */
+  function showScreen(id) {
+    document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+    $(id).classList.add('active');
+  }
+  function setStatus(text, cls) {
+    const s = $('status');
+    s.textContent = text;
+    s.className = 'status' + (cls ? ' ' + cls : '');
+  }
+  function addMsg(text, cls) {
+    const d = document.createElement('div');
+    d.className = 'msg ' + cls;
+    d.textContent = text;           // textContent keeps user text safe
+    const box = $('messages');
+    box.appendChild(d);
+    box.scrollTop = box.scrollHeight;
+  }
+  function clearMsgs() { $('messages').innerHTML = ''; $('typing').textContent = ''; }
+  function setChatEnabled(on) {
+    connected = on;
+    $('input').disabled = !on;
+    $('sendBtn').disabled = !on;
+    $('reportBtn').disabled = !on;
+    if (on) $('input').focus();
+  }
+  function renderCounts() {
+    $('lcMale').textContent = counts.male;
+    $('lcFemale').textContent = counts.female;
+    if (myGender) {
+      $('oppLabel').textContent = oppWordPlural() + ' online';
+      $('oppCount').textContent = myGender === 'male' ? counts.female : counts.male;
+    }
+  }
+
+  /* ----- socket events ----- */
+  socket.on('counts', (c) => { counts = c; renderCounts(); });
+
+  socket.on('joined', () => {
+    joined = true;
+    showScreen('chat');
+    renderCounts();
+    clearMsgs();
+    socket.emit('find');
+  });
+
+  socket.on('searching', () => {
+    setChatEnabled(false);
+    clearMsgs();
+    $('nextBtn').textContent = 'Next';
+    setStatus('Looking for a ' + oppWord() + '…', 'searching');
+    addMsg('Searching for a ' + oppWord() + ' who is online…', 'sys');
+  });
+
+  socket.on('matched', () => {
+    clearMsgs();
+    setChatEnabled(true);
+    setStatus('Connected', 'live-on');
+    addMsg('You are now chatting with a ' + oppWord() + '. Say hi!', 'sys');
+  });
+
+  socket.on('message', (text) => {
+    $('typing').textContent = '';
+    addMsg(text, 'them');
+  });
+
+  socket.on('typing', (isTyping) => {
+    $('typing').textContent = isTyping ? 'Typing…' : '';
+  });
+
+  socket.on('partner-left', () => {
+    setChatEnabled(false);
+    setStatus('Disconnected');
+    $('typing').textContent = '';
+    addMsg('The other person left. Press Next to meet someone new.', 'sys');
+  });
+
+  socket.on('reported', () => {
+    setChatEnabled(false);
+    addMsg('Reported. You will not be matched with this person again.', 'sys');
+    socket.emit('find');
+  });
+
+  socket.on('idle', () => {
+    setChatEnabled(false);
+    setStatus('Stopped');
+    $('nextBtn').textContent = 'Find someone';
+    addMsg('You stopped chatting. Press Find someone to start again.', 'sys');
+  });
+
+  socket.on('disconnect', () => {
+    setChatEnabled(false);
+    setStatus('Connection lost');
+    if (joined) addMsg('Connection lost. Reconnecting…', 'sys');
+  });
+
+  socket.on('connect', () => {
+    // after a reconnect the server has forgotten us, so join again
+    if (joined && myGender) socket.emit('join', { gender: myGender, adult: true });
+  });
+
+  /* ----- chat actions ----- */
+  $('nextBtn').addEventListener('click', () => socket.emit('find'));
+  $('stopBtn').addEventListener('click', () => socket.emit('stop'));
+  $('reportBtn').addEventListener('click', () => {
+    if (connected && confirm('Report this person and move on?')) socket.emit('report');
+  });
+
+  $('composer').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = $('input').value.trim();
+    if (!text || !connected) return;
+    socket.emit('message', text);
+    addMsg(text, 'me');
+    $('input').value = '';
+    socket.emit('typing', false);
+  });
+
+  $('input').addEventListener('input', () => {
+    if (!connected) return;
+    socket.emit('typing', true);
+    clearTimeout(typingTimer);
+    typingTimer = setTimeout(() => socket.emit('typing', false), 1500);
+  });
+})();
+</script>
+</body>
+</html>
